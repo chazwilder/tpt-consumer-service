@@ -1,0 +1,57 @@
+refresh_rate: 30 seconds
+
+appenders:
+  # Console appender
+  stdout:
+    kind: console
+    encoder:
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} | {({l}):5.5} | {f}:{L} — {m}{n}"
+
+  # File appender for INFO logs
+  info_file:
+    kind: rolling_file
+    path: "info.log"
+    encoder:
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} | {({l}):5.5} | {f}:{L} — {m}{n}"
+    policy:
+      trigger:
+        kind: size
+        limit: 50 mb
+      roller:
+        kind: delete
+
+  # Existing appenders
+  step_ap:
+    kind: rolling_file
+    path: "step.log"
+    encoder:
+      pattern: "{d(%Y-%m-%d %H:%M:%S)} | {({l}):5.5} | {f}:{L} — {m}{n}"
+    policy:
+      trigger:
+        kind: size
+        limit: 30 mb
+      roller:
+        kind: delete
+  strong_level_ap:
+    kind: file
+    path: "strong_level.log"
+    encoder:
+      pattern: "{d} - {m}{n}"
+
+root:
+  level: info
+  appenders:
+    - stdout
+    - info_file
+
+loggers:
+  step:
+    level: debug
+    appenders:
+      - step_ap
+    additive: false
+  strong_level:
+    level: debug
+    appenders:
+      - strong_level_ap
+    additive: false

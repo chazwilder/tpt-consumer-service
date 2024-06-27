@@ -1,10 +1,17 @@
-use chrono::{DateTime, FixedOffset, NaiveDateTime};
+use anyhow::anyhow;
+use chrono::{DateTime, FixedOffset};
+use log::{error, info};
 use crate::models::ILgv;
 use crate::db::mssql_rch::get_connection;
-use sqlx_oldapi::{QueryBuilder,Mssql};
 
-pub async fn lgv_plc_to_mssql(lgv: ILgv) {
-    let pool = get_connection().await.expect("Failed to get database connection");
+pub async fn lgv_plc_to_mssql(lgv: ILgv) -> Result<(), anyhow::Error> {
+    let pool = match get_connection().await {
+        Some(pool) => pool,
+        None => {
+            error!("Failed to get database connection");
+            return Err(anyhow!("Database connection error"));
+        }
+    };
     let new_dt = lgv.log_dttm.to_string().clone();
     println!("Original date-time: {:?}", new_dt);
 
@@ -41,10 +48,11 @@ pub async fn lgv_plc_to_mssql(lgv: ILgv) {
         if lgv.agv_alarm.unwrap_or_default() { 1 } else { 0 },
         if lgv.low_battery_warning.unwrap_or_default() { 1 } else { 0 }
     );
-    println!("QueryBuilder: {:?}", &query);
+    info!("QueryBuilder: {}", &query);
     sqlx_oldapi::query(&query)
         .execute(&pool)
         .await
-        .map_err(|e| println!("Error executing query: {:?}", e))
+        .map_err(|e| println!("Error executing query: {}", e))
         .ok();
+    Ok(())
     }

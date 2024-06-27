@@ -8,9 +8,16 @@ use log::{info, error};
 
 pub async fn invenotry_snapshot(trip_number: &i64) -> Result<Vec<ILoadDetails>, Box<dyn std::error::Error>> {
     dotenv().ok();
-    let pool = get_connection().await?;
+    let pool = match get_connection().await {
+        Some(pool) => pool,
+        None => {
+            error!("Failed to get database connection");
+            return Err("Database connection error".into());
+        }
+    };
     let sp = env::var("INVENTORY_QUERY").unwrap_or_default();
     let sql = format!("{} {}", sp, trip_number);
+    info!("{}", &sql);
     match sqlx_oldapi::query_as::<_, ILoadDetails>(&sql).fetch_all(&pool).await {
         Ok(rows) => {
             info!("Retrieved {} new orders from SQL Server", rows.len());

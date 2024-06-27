@@ -13,7 +13,6 @@ pub async fn get_mq() -> Result<Channel, Box<dyn std::error::Error>> {
     let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
     let channel = conn.create_channel().await?;
 
-    info!("Connected to RabbitMQ, exchange declared: new_order");
     Ok(channel)
 }
 
@@ -26,12 +25,13 @@ pub async fn new_order_listener() -> Result<(), Box<dyn std::error::Error>> {
         FieldTable::default(),
     )
     .await?;
+    info!("Connected to RabbitMQ, exchange declared: new_order");
     println!("Consumer started. Waiting for messages on pre-check-snapshot queue...");
 
     while let Some(delivery) = consumer.next().await {
         match delivery {
             Ok(delivery) => {
-                println!("Received message: {:?}", delivery);
+                info!("New Order Received message: {:?}", delivery);
                 let _ = process_new_order(delivery).await;
             }
             Err(e) => error!("Error in consumer: {:?}", e),
@@ -50,12 +50,13 @@ pub async fn lgv_plc_listener() -> Result<(), Box<dyn std::error::Error>> {
         FieldTable::default(),
     )
     .await?;
-    println!("Consumer started. Waiting for messages on pre-check-snapshot queue...");
+    info!("Connected to RabbitMQ, exchange declared: lgv_plc");
+    println!("Consumer started. Waiting for messages on LGV PLC queue...");
 
     while let Some(delivery) = consumer.next().await {
         match delivery {
             Ok(delivery) => {
-                println!("Received message: {:?}", delivery);
+                println!("PLC Received message: {:?}", delivery);
                 let _ = process_lgv_plc(delivery).await;
             }
             Err(e) => error!("Error in consumer: {:?}", e),

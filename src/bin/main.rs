@@ -1,5 +1,5 @@
 use log4rs;
-use tpt_consumer::domain::mq::new_order_listener;
+use tpt_consumer::domain::mq::{lgv_plc_listener, new_order_listener};
 use tokio;
 use warp::Filter;
 
@@ -10,11 +10,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let health_route = warp::path("heartbeat").map(|| "OK");
     let server = tokio::spawn(warp::serve(health_route).run(([0, 0, 0, 0], 3033)));
 
-    if let Err(e) = new_order_listener().await {
-        eprintln!("Change stream error: {:?}", e);
-        std::process::exit(1);
+    tokio::select! {
+        result = new_order_listener() => {
+            if let Err(e) = result {
+                eprintln!("Error in new_order_listener: {:?}", e);
+                std::process::exit(1);
+            }
+        },
+        result = lgv_plc_listener() => {
+            if let Err(e) = result {
+                eprintln!("Error in lgv_plc_listener: {:?}", e);
+                std::process::exit(1);
+            }
+        },
+        _ = tokio::signal::ctrl_c() => {
+            println!("Received Ctrl+C, shutting down");
+        },
     }
-    tokio::signal::ctrl_c().await?;
+
     server.abort();
     println!("Shutting down");
     Ok(())

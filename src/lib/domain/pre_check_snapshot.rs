@@ -16,7 +16,7 @@ pub async fn process_new_order(delivery: Delivery) -> Result<(), Box<dyn std::er
     };
     info!("New order: {:?}", &new_order);
     let inv = invenotry_snapshot(&new_order.trip_number).await?;
-    let _ = update_shipment(inv, new_order);
+    update_shipment(inv, new_order).await;
 
     delivery.ack(BasicAckOptions::default()).await?;
     Ok(())

@@ -13,7 +13,6 @@ pub async fn lgv_plc_to_mssql(lgv: ILgv) -> Result<(), anyhow::Error> {
         }
     };
     let new_dt = lgv.log_dttm.to_string().clone();
-    println!("Original date-time: {:?}", new_dt);
 
     // Try parsing with different formats
     let dt = DateTime::parse_from_rfc3339(&new_dt)
@@ -22,7 +21,6 @@ pub async fn lgv_plc_to_mssql(lgv: ILgv) -> Result<(), anyhow::Error> {
         .expect("Failed to parse date-time");
 
     let formatted_dt = dt.with_timezone(&FixedOffset::east(0)).format("%Y-%m-%d %H:%M:%S");
-    println!("Formatted date-time: {:?}", formatted_dt);
 
     let query = format!(
         "INSERT INTO [RCH-E80-REP-DB].[dbo].[LGV_PLC_LOG] (LOG_DTTM, LGV_ID, X_POS, Y_POS, RESET_NOTIFY, AUTO_MODE, LOADED, IN_SYSTEM, POSITION_VALID, REMOVE_BLOCK_REQUEST, LOCAL_MODE, END_OP_OK, MOVING_FW, MOVING_BW, WAITING_FOR_COMMAND, ON_TARGET, END_OP_FAIL, LOW_BATTERY_ALARM, AGV_ALARM, LOW_BATTERY_WARNING)
@@ -48,7 +46,6 @@ pub async fn lgv_plc_to_mssql(lgv: ILgv) -> Result<(), anyhow::Error> {
         if lgv.agv_alarm.unwrap_or_default() { 1 } else { 0 },
         if lgv.low_battery_warning.unwrap_or_default() { 1 } else { 0 }
     );
-    info!("QueryBuilder: {}", &query);
     sqlx_oldapi::query(&query)
         .execute(&pool)
         .await

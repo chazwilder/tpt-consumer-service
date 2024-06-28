@@ -1,4 +1,4 @@
-
+use std::collections::HashMap;
 use dotenvy::dotenv;
 use std::env;
 use log::{error, info};
@@ -28,14 +28,26 @@ pub async fn update_shipment(inv: Vec<ILoadDetails>, new_order: INewOrder) {
     let object_id = ObjectId::parse_str(&new_order.mongo_id)?;
     let filter = doc! { "_id": object_id };
 
+    let sku_data: HashMap<String, Document> = inv.iter()
+        .map(|load| (
+            load.SKU.clone(),
+            doc! {
+                "SKU_LOCATION_COUNT": load.SKU_LOCATION_COUNT as i32,
+                "TOTAL_INVENTORY": load.TOTAL_INVENTORY as i32,
+                "SKU_CROSSDOCKING_ENABLED": load.SKU_CROSSDOCKING_ENABLED as i32,
+                "HOLD_HOURS": load.HOLD_HOURS as i32
+            }
+        ))
+        .collect();
     let mut update_doc = Document::new();
-    update_doc.insert("$set", doc! {
-        "SKU": inv.iter().map(|load| load.SKU.clone()).collect::<Vec<String>>(),
-        "SKU_LOCATION_COUNT": inv.iter().map(|load| load.SKU_LOCATION_COUNT).sum::<i64>(),
+    let set_doc = doc! {
+        "SDM_SHIPMENT_ID": inv[0].SDM_SHIPMENT_ID,
+        "SKU": sku_data,
         "PALLET_COUNT": inv.iter().map(|load| load.PALLET_COUNT).sum::<i64>(),
-        "CROSSDOCKING_ENABLED": inv.iter().any(|load| load.LOAD_CROSSDOCKING_ENABLED || load.SKU_CROSSDOCKING_ENABLED),
-    });
+        "LOAD_CROSSDOCKING_ENABLED": inv[0].LOAD_CROSSDOCKING_ENABLED
+    };
 
+    update_doc.insert("$set", set_doc);
     let options = FindOneAndUpdateOptions::builder()
         .upsert(Some(false))
         .build();

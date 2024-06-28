@@ -1,6 +1,7 @@
 use derive_more::Constructor;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
+use mongodb::bson::Document;
 use sqlx_oldapi::types::chrono::NaiveDateTime;
 use serde::{Deserialize, Serialize, Deserializer, Serializer};
 
@@ -81,9 +82,7 @@ pub struct MongoShipments {
     pub APPOINTMENT_TIME_VARIANCE: Option<i64>,
     pub APPOINTMENT_STATUS: Option<String>,
     pub GRANT_DETENTION: Option<bool>,
-    pub SKU: Option<Vec<String>>,
-    pub SKU_LOCATION_COUNT: Option<i32>,
-    pub PALLET_COUNT: Option<i32>,
+    pub SKU: Option<HashMap<String, Document>>,
     pub PLANT_ASSETS: Option<PlantAssets>,
     pub LOCATIONS: Option<Vec<Location>>,
     pub AGING_LPNS: Option<Vec<AgingLPN>>,

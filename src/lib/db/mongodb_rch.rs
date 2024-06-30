@@ -23,6 +23,10 @@ pub async fn get_db()-> Result<Database, anyhow::Error> {
 }
 
 pub async fn update_shipment(inv: Vec<ILoadDetails>, new_order: INewOrder) {
+    if inv.is_empty() {
+        error!("Inventory vector is empty. Cannot update shipment.");
+        return;
+    }
     let db = get_db().await.unwrap();
     let collection = db.collection::<MongoShipments>("shipments");
     let object_id = ObjectId::parse_str(&new_order.mongo_id).unwrap();

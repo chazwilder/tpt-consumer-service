@@ -12,12 +12,20 @@ pub async fn get_mq() -> Result<Channel, Box<dyn std::error::Error>> {
     let addr = env::var("RABBITMQ_URL").expect("RABBITMQ_URL must be set");
     let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
     let channel = conn.create_channel().await?;
+    channel.basic_qos(10, BasicQosOptions::default()).await.unwrap();
 
     Ok(channel)
 }
 
 pub async fn new_order_listener() -> Result<(), Box<dyn std::error::Error>> {
-    let mut consumer = get_mq().await?
+    dotenv().ok();
+
+    let addr = env::var("RABBITMQ_URL").expect("RABBITMQ_URL must be set");
+    let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
+    channel.basic_qos(10, BasicQosOptions::default()).await.unwrap();
+
+    let mut consumer = channel
     .basic_consume(
         "pre-check-snapshot",
         "pre-check-snapshot-consumer-rust",
@@ -42,7 +50,14 @@ pub async fn new_order_listener() -> Result<(), Box<dyn std::error::Error>> {
 
 
 pub async fn lgv_plc_listener() -> Result<(), Box<dyn std::error::Error>> {
-    let mut consumer = get_mq().await?
+    dotenv().ok();
+
+    let addr = env::var("RABBITMQ_URL").expect("RABBITMQ_URL must be set");
+    let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
+    channel.basic_qos(10, BasicQosOptions::default()).await.unwrap();
+
+    let mut consumer = channel
     .basic_consume(
         "lgv_plc_log",
         "rust",

@@ -5,6 +5,7 @@ use dotenvy::dotenv;
 use std::env;
 use futures::StreamExt;
 use log::{error, info};
+use tokio::sync::broadcast::Receiver;
 
 pub async fn get_mq() -> Result<Channel, Box<dyn std::error::Error>> {
     dotenv().ok();
@@ -17,7 +18,7 @@ pub async fn get_mq() -> Result<Channel, Box<dyn std::error::Error>> {
     Ok(channel)
 }
 
-pub async fn new_order_listener() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn new_order_listener(x: &mut Receiver<()>) -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     let addr = env::var("RABBITMQ_URL").expect("RABBITMQ_URL must be set");
@@ -49,7 +50,7 @@ pub async fn new_order_listener() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 
-pub async fn lgv_plc_listener() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn lgv_plc_listener(x: &mut Receiver<()>) -> Result<(), Box<dyn std::error::Error>> {
     dotenv().ok();
 
     let addr = env::var("RABBITMQ_URL").expect("RABBITMQ_URL must be set");

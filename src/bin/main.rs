@@ -1,10 +1,13 @@
 use log::{error, info};
 use tpt_consumer::domain::mq::{lgv_plc_listener, new_order_listener};
+use metrics::{counter, gauge};
 use tokio;
 use warp::Filter;
 use thiserror::Error;
 use std::time::Duration;
 use anyhow;
+use dotenvy::dotenv;
+use std::env;
 
 #[derive(Error, Debug)]
 pub enum AppError {
@@ -20,9 +23,9 @@ pub enum AppError {
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    // Initialize logger
+    dotenv().ok()
     log4rs::init_file(
-        "C:\\Users\\cwilder\\Desktop\\dev\\TPT\\consumer_service\\log4rs.yaml",
+        env::var("LOG4RS_DIR"),
         Default::default(),
     ).map_err(|e| AppError::LoggerInitError(e.into()))?;
 
@@ -47,9 +50,13 @@ async fn main() -> Result<(), AppError> {
         tokio::select! {
             result = new_order_listener(&mut new_order_shutdown_receiver) => {
                 match result {
-                    Ok(_) => info!("New order listener completed successfully"),
+                    Ok(_) => {
+                        info!("LGV PLC listener completed successfully");
+                        counter!("lgv_plc_listener_success", 1);
+                    },
                     Err(e) => {
-                        error!("New order listener error: {}. Restarting in 5 seconds...", e);
+                        error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
+                        counter!("lgv_plc_listener_error", 1);
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     }
                 }

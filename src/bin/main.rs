@@ -1,6 +1,5 @@
 use log::{error, info};
 use tpt_consumer::domain::mq::{lgv_plc_listener, new_order_listener};
-use metrics::{counter, gauge};
 use tokio;
 use warp::Filter;
 use thiserror::Error;
@@ -23,9 +22,9 @@ pub enum AppError {
 
 #[tokio::main]
 async fn main() -> Result<(), AppError> {
-    dotenv().ok()
+    dotenv().ok();
     log4rs::init_file(
-        env::var("LOG4RS_DIR"),
+        env::var("LOG4RS_DIR").expect("LOG4RS DIR NOT DEFINED."),
         Default::default(),
     ).map_err(|e| AppError::LoggerInitError(e.into()))?;
 
@@ -52,11 +51,9 @@ async fn main() -> Result<(), AppError> {
                 match result {
                     Ok(_) => {
                         info!("LGV PLC listener completed successfully");
-                        counter!("lgv_plc_listener_success", 1);
                     },
                     Err(e) => {
                         error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
-                        counter!("lgv_plc_listener_error", 1);
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     }
                 }

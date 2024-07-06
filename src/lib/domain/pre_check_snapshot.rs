@@ -1,10 +1,12 @@
 use lapin::message::Delivery;
 use lapin::options::BasicAckOptions;
 use log::info;
-use serde_json::{Value};
+use serde_json::{json, Value};
 use crate::models::imq_new_order::INewOrder;
 use crate::domain::inventory::invenotry_snapshot;
 use crate::db::mongodb_rch::update_shipment;
+use crate::domain::mq::publish_to_rabbitmq;
+use crate::domain::plant_assets::update_assets;
 
 pub async fn process_new_order(delivery: Delivery) -> Result<(), Box<dyn std::error::Error>> {
     let message = String::from_utf8(delivery.data.clone())?;
@@ -16,8 +18,14 @@ pub async fn process_new_order(delivery: Delivery) -> Result<(), Box<dyn std::er
     };
     info!("New order: {:?}", &new_order);
     let inv = invenotry_snapshot(&new_order.trip_number).await?;
-    update_shipment(inv, new_order).await;
+    update_shipment(inv, &new_order).await;
+    let mut assets = update_assets().await?;
+    let mut assets_json: Value = serde_json::to_value(&assets)?;
+    assets_json["TRIP_NUMBER"] = json!(new_order.trip_number);
+    let assets_json_string = serde_json::to_string_pretty(&assets_json)?;
+    println!("{}", &assets_json_string);
 
+    publish_to_rabbitmq("plant_assets_log", &assets_json_string).await?;
     delivery.ack(BasicAckOptions::default()).await?;
     Ok(())
 }

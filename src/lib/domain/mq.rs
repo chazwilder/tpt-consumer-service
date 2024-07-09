@@ -6,6 +6,7 @@ use std::env;
 use futures::StreamExt;
 use log::{error, info};
 use tokio::sync::broadcast::Receiver;
+use crate::domain::locations::process_locations;
 use crate::domain::plant_assets::process_plant_assets;
 
 pub async fn get_mq() -> Result<Channel, Box<dyn std::error::Error>> {
@@ -58,13 +59,13 @@ pub async fn lgv_plc_listener(x: &mut Receiver<()>) -> Result<(), Box<dyn std::e
     channel.basic_qos(10, BasicQosOptions::default()).await.unwrap();
 
     let mut consumer = channel
-    .basic_consume(
-        "lgv_plc_log",
-        "rust",
-        BasicConsumeOptions::default(),
-        FieldTable::default(),
-    )
-    .await?;
+        .basic_consume(
+            "lgv_plc_log",
+            "rust",
+            BasicConsumeOptions::default(),
+            FieldTable::default(),
+        )
+        .await?;
     info!("Connected to RabbitMQ, exchange declared: lgv_plc");
     println!("Consumer started. Waiting for messages on LGV PLC queue...");
 
@@ -73,6 +74,37 @@ pub async fn lgv_plc_listener(x: &mut Receiver<()>) -> Result<(), Box<dyn std::e
             Ok(delivery) => {
                 println!("PLC Received message: {:?}", delivery);
                 let _ = process_lgv_plc(delivery).await;
+            }
+            Err(e) => error!("Error in consumer: {:?}", e),
+        }
+    }
+    Ok(())
+}
+
+pub async fn locations_listener(x: &mut Receiver<()>) -> Result<(), Box<dyn std::error::Error>> {
+    dotenv().ok();
+
+    let addr = env::var("RABBITMQ_URL").expect("RABBITMQ_URL must be set");
+    let conn = Connection::connect(&addr, ConnectionProperties::default()).await?;
+    let channel = conn.create_channel().await?;
+    channel.basic_qos(10, BasicQosOptions::default()).await.unwrap();
+
+    let mut consumer = channel
+    .basic_consume(
+        "locations_log",
+        "rust",
+        BasicConsumeOptions::default(),
+        FieldTable::default(),
+    )
+    .await?;
+    info!("Connected to RabbitMQ, exchange declared: locations_log");
+    println!("Consumer started. Waiting for messages on Location Log queue...");
+
+    while let Some(delivery) = consumer.next().await {
+        match delivery {
+            Ok(delivery) => {
+                println!("Locations Received message: {:?}", delivery);
+                let _ = process_locations(delivery).await;
             }
             Err(e) => error!("Error in consumer: {:?}", e),
         }

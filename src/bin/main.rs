@@ -31,7 +31,7 @@ async fn main() -> Result<(), AppError> {
     info!("Starting application");
 
     let health_route = warp::path("heartbeat").map(|| "OK");
-    let server = tokio::spawn(warp::serve(health_route).run(([0, 0, 0, 0], 3033)));
+    let server = tokio::spawn(warp::serve(health_route).run(([0, 0, 0, 0], 3043)));
 
     let (shutdown_sender, mut shutdown_receiver) = tokio::sync::broadcast::channel::<()>(1);
     let shutdown_sender_clone = shutdown_sender.clone();
@@ -51,23 +51,23 @@ async fn main() -> Result<(), AppError> {
             result = new_order_listener(&mut new_order_shutdown_receiver) => {
                 match result {
                     Ok(_) => {
-                        info!("LGV PLC listener completed successfully");
+                        info!("New Order listener completed successfully");
                     },
                     Err(e) => {
-                        error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
+                        error!("New Order listener error: {}. Restarting in 5 seconds...", e);
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     }
                 }
             },
-            result = lgv_plc_listener(&mut lgv_plc_shutdown_receiver) => {
-                match result {
-                    Ok(_) => info!("LGV PLC listener completed successfully"),
-                    Err(e) => {
-                        error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                    }
-                }
-            },
+            // result = lgv_plc_listener(&mut lgv_plc_shutdown_receiver) => {
+            //     match result {
+            //         Ok(_) => info!("LGV PLC listener completed successfully"),
+            //         Err(e) => {
+            //             error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
+            //             tokio::time::sleep(Duration::from_secs(5)).await;
+            //         }
+            //     }
+            // },
             result = plant_asset_listener(&mut plant_asset_shutdown_receiver) => {
                 match result {
                     Ok(_) => info!("PLANT ASSET listener completed successfully"),

@@ -29,8 +29,8 @@ pub async fn process_new_order(delivery: Delivery) -> Result<(), Box<dyn std::er
     publish_to_rabbitmq("plant_assets_log", &assets_json_string).await?;
     let location = update_locations(&sku).await?;
     let mut location_json: Value = serde_json::to_value(&location)?;
-    location_json["TRIP_NUMBER"] = json!(new_order.trip_number);
-    let location_json_string = serde_json::to_string_pretty(&location_json)?;
+    let loco_json = json!({"TRIP_NUMBER": new_order.trip_number, "LOCATIONS": location_json});
+    let location_json_string = serde_json::to_string_pretty(&loco_json)?;
     publish_to_rabbitmq("locations_log", &location_json_string).await?;
     delivery.ack(BasicAckOptions::default()).await?;
     Ok(())

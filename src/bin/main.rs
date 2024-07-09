@@ -1,5 +1,5 @@
 use log::{error, info};
-use tpt_consumer::domain::mq::{lgv_plc_listener, new_order_listener, plant_asset_listener};
+use tpt_consumer::domain::mq::{lgv_plc_listener, locations_listener, new_order_listener, plant_asset_listener};
 use tokio;
 use warp::Filter;
 use thiserror::Error;
@@ -45,6 +45,7 @@ async fn main() -> Result<(), AppError> {
     let mut new_order_shutdown_receiver = shutdown_sender.subscribe();
     let mut lgv_plc_shutdown_receiver = shutdown_sender.subscribe();
     let mut plant_asset_shutdown_receiver = shutdown_sender.subscribe();
+    let mut locations_shutdown_receiver = shutdown_sender.subscribe();
 
     loop {
         tokio::select! {
@@ -55,6 +56,17 @@ async fn main() -> Result<(), AppError> {
                     },
                     Err(e) => {
                         error!("New Order listener error: {}. Restarting in 5 seconds...", e);
+                        tokio::time::sleep(Duration::from_secs(5)).await;
+                    }
+                }
+            },
+            result = locations_listener(&mut locations_shutdown_receiver) => {
+                match result {
+                    Ok(_) => {
+                        info!("Load Locations listener completed successfully");
+                    },
+                    Err(e) => {
+                        error!("Load Locations listener error: {}. Restarting in 5 seconds...", e);
                         tokio::time::sleep(Duration::from_secs(5)).await;
                     }
                 }

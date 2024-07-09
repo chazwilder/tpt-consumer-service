@@ -1,14 +1,14 @@
 use dotenvy::dotenv;
 use std::env;
 use log::{error, info};
-use mongodb::{Client, options::ClientOptions, Database};
+use mongodb::{Client, options::ClientOptions, Database, bson};
 use mongodb::bson::{doc, Document, to_document};
 use mongodb::bson::oid::ObjectId;
 use mongodb::options::FindOneAndUpdateOptions;
 use crate::models::imq_new_order::INewOrder;
 use crate::models::ishipment_details::ILoadDetails;
 use crate::models::MongoShipments;
-use crate::domain::MPlantAsset;
+use crate::domain::{ISkuLocation, MPlantAsset};
 
 
 pub async fn get_db()-> Result<Database, anyhow::Error> {
@@ -87,6 +87,39 @@ pub async fn save_assets(mplant_asset: MPlantAsset, trip_number: i32) -> Result<
     match collection.find_one_and_update(filter, update_doc, options).await {
         Ok(Some(updated_doc)) => {
             info!("Updated document: {:?}", updated_doc);
+            Ok(())
+        },
+        Ok(None) => {
+            info!("No document found with Trip_Number: {}", trip_number);
+            Ok(())
+        },
+        Err(e) => {
+            error!("Error updating document: {}", e);
+            Err(e.into())
+        },
+    }
+}
+pub async fn save_locations(locations: Vec<ISkuLocation>, trip_number: i32) -> Result<(), anyhow::Error> {
+    info!("{:?}", &locations);
+    let db = get_db().await.unwrap();
+    let collection = db.collection::<Document>("shipments");
+    let filter = doc! { "TRIP_NUMBER": trip_number };
+
+    let load_locations = bson::to_bson(&locations)?;
+
+    let update_doc = doc! {
+        "$set": {
+            "LOCATIONS": load_locations
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(false))
+        .build();
+
+    match collection.find_one_and_update(filter, update_doc, options).await {
+        Ok(Some(updated_doc)) => {
+            info!("Updated document locations: {:?}", updated_doc);
             Ok(())
         },
         Ok(None) => {

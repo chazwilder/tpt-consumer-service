@@ -6,6 +6,10 @@ use log::{error, info};
 use crate::db::get_connection;
 use dotenvy::dotenv;
 use std::env;
+use lapin::message::Delivery;
+use lapin::options::BasicAckOptions;
+use serde_json::Value;
+use crate::db::mongodb_rch::save_locations;
 use crate::domain::plant_assets::IPlantAssets;
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Constructor, FromRow, Into)]
@@ -28,10 +32,10 @@ pub struct ISkuLocation {
     pub storage_position: i64,
     pub position_level: i64,
     pub position_row: i64,
-    pub retrieval_red_block: i64,
-    pub retrieval_disabled: i64,
-    pub storage_red_block: i64,
-    pub storage_disabled: i64,
+    pub retrieval_red_block: bool,
+    pub retrieval_disabled: bool,
+    pub storage_red_block: bool,
+    pub storage_disabled: bool,
     pub id_stock_unit: i64,
     pub lpn: String,
     pub enter_date_time: NaiveDateTime,
@@ -85,4 +89,22 @@ pub async fn update_locations(sku: &str) -> Result<Vec<ISkuLocation>, anyhow::Er
             Err(err.into())
         }
     }
+}
+
+pub async fn process_locations(delivery: Delivery) -> Result<(), Box<dyn std::error::Error>> {
+    let message = String::from_utf8(delivery.data.clone())?;
+    let v: Value = serde_json::from_str(&message)?;
+    let trip_number = v["TRIP_NUMBER"].as_i64().unwrap_or_default() as i32;
+    let loco = v["LOCATIONS"].clone();
+    let locations: Vec<ISkuLocation> = serde_json::from_value(loco)?;
+    match save_locations(locations,trip_number).await {
+        Ok(rows) => {
+            delivery.ack(BasicAckOptions::default()).await?;
+            info!("Message processed and acknowledged successfully");
+        }
+        Err(e) => {
+            error!("Error processing message: {:?}", e);
+        }
+    }
+    Ok(())
 }

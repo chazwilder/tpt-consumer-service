@@ -9,3 +9,4 @@ mod locations;
 pub use process_lgv_plc::process_lgv_plc;
 pub use save_lgv_plc::lgv_plc_to_mssql;
 pub use plant_assets::MPlantAsset;
+pub use locations::ISkuLocation;

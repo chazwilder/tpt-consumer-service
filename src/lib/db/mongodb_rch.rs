@@ -1,14 +1,14 @@
-use std::collections::HashMap;
 use dotenvy::dotenv;
 use std::env;
 use log::{error, info};
 use mongodb::{Client, options::ClientOptions, Database};
-use mongodb::bson::{doc, Document};
+use mongodb::bson::{doc, Document, to_document};
 use mongodb::bson::oid::ObjectId;
 use mongodb::options::FindOneAndUpdateOptions;
 use crate::models::imq_new_order::INewOrder;
 use crate::models::ishipment_details::ILoadDetails;
 use crate::models::MongoShipments;
+use crate::domain::MPlantAsset;
 
 
 pub async fn get_db()-> Result<Database, anyhow::Error> {
@@ -22,7 +22,7 @@ pub async fn get_db()-> Result<Database, anyhow::Error> {
     return Ok(db);
 }
 
-pub async fn update_shipment(inv: Vec<ILoadDetails>, new_order: INewOrder) {
+pub async fn update_shipment(inv: Vec<ILoadDetails>, new_order: &INewOrder) {
     if inv.is_empty() {
         error!("Inventory vector is empty. Cannot update shipment.");
         return;
@@ -35,7 +35,7 @@ pub async fn update_shipment(inv: Vec<ILoadDetails>, new_order: INewOrder) {
     let mut sku_data = Document::new();
     for load in &inv {
         sku_data.insert(load.SKU.clone(), doc! {
-            "SKU_LOCATION_COUNT": load.SKU_LOCATION_COUNT as i32,
+            "SKU_LOCATION_COUNT": load.SKU_LOCATION_COUNT,
             "TOTAL_INVENTORY": load.TOTAL_INVENTORY as i32,
             "SKU_CROSSDOCKING_ENABLED": load.SKU_CROSSDOCKING_ENABLED as i32,
             "HOLD_HOURS": load.HOLD_HOURS as i32
@@ -55,7 +55,7 @@ pub async fn update_shipment(inv: Vec<ILoadDetails>, new_order: INewOrder) {
     let options = FindOneAndUpdateOptions::builder()
         .upsert(Some(false))
         .build();
-match collection.find_one_and_update(filter, update_doc, options).await {
+    match collection.find_one_and_update(filter, update_doc, options).await {
         Ok(Some(updated_doc)) => {
             info!("Updated document: {:?}", updated_doc);
         },
@@ -66,3 +66,36 @@ match collection.find_one_and_update(filter, update_doc, options).await {
     }
 }
 
+pub async fn save_assets(mplant_asset: MPlantAsset, trip_number: i32) -> Result<(), anyhow::Error> {
+
+    let db = get_db().await.unwrap();
+    let collection = db.collection::<Document>("shipments");
+    let filter = doc! { "TRIP_NUMBER": trip_number };
+
+    let plant_asset_doc = to_document(&mplant_asset)?;
+
+    let update_doc = doc! {
+        "$set": {
+            "PLANT_ASSETS": plant_asset_doc
+        }
+    };
+
+    let options = FindOneAndUpdateOptions::builder()
+        .upsert(Some(false))
+        .build();
+
+    match collection.find_one_and_update(filter, update_doc, options).await {
+        Ok(Some(updated_doc)) => {
+            info!("Updated document: {:?}", updated_doc);
+            Ok(())
+        },
+        Ok(None) => {
+            info!("No document found with Trip_Number: {}", trip_number);
+            Ok(())
+        },
+        Err(e) => {
+            error!("Error updating document: {}", e);
+            Err(e.into())
+        },
+    }
+}

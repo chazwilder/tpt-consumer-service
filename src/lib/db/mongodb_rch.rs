@@ -106,10 +106,14 @@ pub async fn save_locations(locations: Vec<ISkuLocation>, trip_number: i32) -> R
     let filter = doc! { "TRIP_NUMBER": trip_number };
 
     let load_locations = bson::to_bson(&locations)?;
+    let aging_lpns: Vec<ISkuLocation> = locations.into_iter().filter(|loc| loc.aging_lpns == 1).collect();
+    let aging= bson::to_bson(&aging_lpns)?;
+
 
     let update_doc = doc! {
         "$set": {
-            "LOCATIONS": load_locations
+            "LOCATIONS": load_locations,
+            "AGING_LPNS": aging
         }
     };
 

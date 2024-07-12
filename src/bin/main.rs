@@ -71,15 +71,15 @@ async fn main() -> Result<(), AppError> {
                     }
                 }
             },
-            result = lgv_plc_listener(&mut lgv_plc_shutdown_receiver) => {
-                match result {
-                    Ok(_) => info!("LGV PLC listener completed successfully"),
-                    Err(e) => {
-                        error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
-                        tokio::time::sleep(Duration::from_secs(5)).await;
-                    }
-                }
-            },
+            // result = lgv_plc_listener(&mut lgv_plc_shutdown_receiver) => {
+            //     match result {
+            //         Ok(_) => info!("LGV PLC listener completed successfully"),
+            //         Err(e) => {
+            //             error!("LGV PLC listener error: {}. Restarting in 5 seconds...", e);
+            //             tokio::time::sleep(Duration::from_secs(5)).await;
+            //         }
+            //     }
+            // },
             result = plant_asset_listener(&mut plant_asset_shutdown_receiver) => {
                 match result {
                     Ok(_) => info!("PLANT ASSET listener completed successfully"),

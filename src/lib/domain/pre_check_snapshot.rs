@@ -8,6 +8,7 @@ use crate::db::mongodb_rch::update_shipment;
 use crate::domain::locations::update_locations;
 use crate::domain::mq::publish_to_rabbitmq;
 use crate::domain::plant_assets::update_assets;
+use crate::models::ishipment_details::ILoadDetails;
 
 pub async fn process_new_order(delivery: Delivery) -> Result<(), Box<dyn std::error::Error>> {
     let message = String::from_utf8(delivery.data.clone())?;
@@ -20,7 +21,9 @@ pub async fn process_new_order(delivery: Delivery) -> Result<(), Box<dyn std::er
     info!("New order: {:?}", &new_order);
     let inv = invenotry_snapshot(&new_order.trip_number).await?;
     update_shipment(inv.clone(), &new_order).await;
-    let sku = inv.first().unwrap().SKU.clone();
+    let sku = inv.first().unwrap_or(&ILoadDetails::new(
+        0,0, "NULL".to_string(), Some(0i64),false, false,0,0
+    )).SKU.clone();
     let trip_number = new_order.trip_number;
     let mut assets = update_assets().await?;
     let mut assets_json: Value = serde_json::to_value(&assets)?;
